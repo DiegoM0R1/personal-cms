@@ -1,51 +1,53 @@
 import { Router } from '@/router/Router';
 import { PublicLayout } from '@/layouts/PublicLayout';
 import { AdminLayout } from '@/layouts/AdminLayout';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
+import { LoginPage } from '@/pages/admin/LoginPage';
+import { DashboardPage } from '@/pages/admin/DashboardPage';
+import { authStore } from '@/stores/AuthStore';
 
 const appRouter = new Router('app');
 
+// Configuración del AuthGuard
+appRouter.setAuthGuard(async () => {
+  const state = authStore.getState();
+  if (state.isLoading) {
+    // Esperar a la resolución de sesión inicial si está en carga
+    await new Promise((resolve) => {
+      const unsubscribe = authStore.subscribe((s) => {
+        if (!s.isLoading) {
+          unsubscribe();
+          resolve(true);
+        }
+      });
+    });
+  }
+  return authStore.getState().isAuthenticated;
+});
+
+// Registro de Rutas
 appRouter
   .register({
     path: '/',
     component: () => {
       const pageContent = document.createElement('div');
-      pageContent.className = 'space-y-6';
-
-      const badge = new Badge({ text: 'Disponible para proyectos', variant: 'success' });
-      const button = new Button({
-        label: 'Ver Proyectos',
-        variant: 'primary',
-        onClick: () => appRouter.navigate('/projects'),
-      });
-
+      pageContent.className = 'space-y-4';
       pageContent.innerHTML = `
-        <div class="space-y-4">
-          <div id="badge-slot"></div>
-          <h1 class="text-4xl font-bold tracking-tight">Software Architect & Frontend Engineer</h1>
-          <p class="text-zinc-400 max-w-2xl text-base leading-relaxed">
-            Diseño e implemento plataformas web escalables, sistemas de diseño y arquitectura de software limpia.
-          </p>
-          <div id="button-slot" class="pt-2"></div>
-        </div>
+        <h1 class="text-4xl font-bold tracking-tight">Software Architect & Lead Engineer</h1>
+        <p class="text-zinc-400">Plataforma personal y CMS administrable.</p>
       `;
-
-      pageContent.querySelector('#badge-slot')?.appendChild(badge.render());
-      pageContent.querySelector('#button-slot')?.appendChild(button.render());
-
       return new PublicLayout({ content: pageContent }).render();
     },
   })
   .register({
+    path: '/login',
+    component: () => new LoginPage().render(),
+  })
+  .register({
     path: '/admin',
+    isPrivate: true,
     component: () => {
-      const pageContent = document.createElement('div');
-      pageContent.innerHTML = `
-        <h1 class="text-2xl font-bold tracking-tight mb-2">Dashboard Principal</h1>
-        <p class="text-zinc-400 text-sm">Bienvenido al panel de administración de tu plataforma personal.</p>
-      `;
-      return new AdminLayout({ content: pageContent, activeRoute: '/admin' }).render();
+      const page = new DashboardPage();
+      return new AdminLayout({ content: page.render(), activeRoute: '/admin' }).render();
     },
   });
 
